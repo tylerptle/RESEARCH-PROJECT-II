@@ -1,0 +1,162 @@
+---
+title: "sta108proj2"
+author: "Tyler Le"
+date: "2023-11-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(dplyr)
+```
+
+```{r}
+senic <- read.csv("~/Downloads/SENIC2.csv", col.names = c("Y", "X1", "X2", "X3", "X4", "X5", "X6"))
+base.md <- lm(Y ~ X1 + X2, data = senic)
+anova(base.md)
+```
+
+```{r}
+md2 <-  lm(Y ~ X1 + X2 + X3, data = senic)
+summary(md2)
+anova(md2)
+plot(Y ~ X1 + X2 + X3, data = senic)
+abline(md2, col = "green")
+```
+
+```{r}
+md3 <- lm(Y ~ X1 + X2 + X4, data = senic)
+summary(md3)
+anova(md3)
+```
+
+```{r}
+md4 <- lm(Y ~ X1 + X2 + X5, data = senic)
+summary(md4)
+anova(md4)
+```
+
+```{r}
+md5 <- lm(Y ~ X1 + X2 + X6, data = senic)
+summary(md5)
+anova(md5)
+```
+
+```{r}
+pairs(senic)
+vif(md3)
+```
+
+```{r}
+#Variable Selection
+
+n = 113
+p = 4
+q = 3
+ybar = mean(senic$Y)
+SSTO = sum((senic$Y - ybar)^2)
+SSR12 = sum((fitted(base.md) - ybar)^2)
+SSR123 = sum((fitted(md2) - ybar)^2)
+SSR124 = sum((fitted(md3) - ybar)^2)
+SSR125 = sum((fitted(md4) - ybar)^2)
+SSR126 = sum((fitted(md5) - ybar)^2)
+
+SSE12 = SSTO - SSR12
+SSE123 = SSTO - SSR123
+SSE124 = SSTO - SSR124
+SSE125 = SSTO - SSR125
+SSE126 = SSTO - SSR126
+
+MSE123 = SSE123 / (n - p)
+MSE124 = SSE124 / (n - p)
+MSE125 = SSE125 / (n - p)
+MSE126 = SSE126 / (n - p)
+
+# Partial R2's 
+R2x3x1x2 = (SSE12 - SSE123) / SSE12
+R2x4x1x2 = (SSE12 - SSE124) / SSE12
+R2x5x1x2 = (SSE12 - SSE125) / SSE12
+R2x6x1x2 = (SSE12 - SSE126) / SSE12
+
+#F-stats
+F123 = (SSE12 - SSE123) / (p - q) / MSE123
+F124 = (SSE12 - SSE124) / (p - q) / MSE124
+F125 = (SSE12 - SSE125) / (p - q) / MSE125
+F126 = (SSE12 - SSE126) / (p - q) / MSE126
+
+qf(.95, p - q, n - p)
+```
+
+
+```{r}
+propmd.2 <- lm(Y ~ X2 + X4 + X6, data = senic)
+summary(propmd.2)
+```
+
+```{r}
+yhat = fitted(md3)
+e = md3$residuals
+par(mfrow=  c(2,2))
+plot(md3, 1)
+plot(md3, 2)
+hist(md3$residuals, 
+     main = "Residuals", 
+     xlab = "ei",
+     pch = 19,font = 2,font.lab = 2,cex = 1.25)
+```
+
+```{r}
+the.SWtest = shapiro.test(e)
+the.SWtest
+```
+
+```{r}
+ Group = rep("Lower",nrow(senic)) 
+ Group[senic$Y > median(senic$Y)] = "Upper" 
+ Group = as.factor(Group) 
+ senic$Group = Group
+ the.FKtest = fligner.test(e, senic$Group)
+ the.FKtest
+```
+
+```{r}
+confint(md3, level = 0.95)
+```
+
+
+```{r}
+newX <- data.frame(X1 = 50, X2 = 6, X4 = 250)
+pred <- predict(md3, newX)
+pred
+```
+
+```{r}
+# Cook's distance
+n <- nrow(senic)
+cooks = cooks.distance(md3)
+cutoff = 4/n
+idx1 = which(cooks > cutoff)
+senic[idx1,]
+
+plot(cooks, ylab = "Cook's Distance", col=ifelse(cooks>cutoff, "red", "black"))
+abline(h=4/n)
+
+# Leverage
+p = length(coef(md3))
+
+# hatvalues
+idx2 = which(hatvalues(md3) > (p+1)/n)
+senic[idx2, ]
+
+# Studentized residuals
+idx3 = which(abs(rstudent(md3)) > 3)
+senic[idx3, ]
+```
+
+```{r}
+subsenic = senic %>% slice(-c(47, 112))
+subsenic
+
+mdclean = lm(Y ~ X1 + X2 + X4, data = subsenic)
+```
